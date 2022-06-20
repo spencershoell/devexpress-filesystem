@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.1.32414.318
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Wazitech.DevExpressFileSystem.Services", "Wazitech.DevExpressFileSystem.Services\Wazitech.DevExpressFileSystem.Services.csproj", "{CEE66C5E-BB6A-49D6-8A07-0143C87216A8}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Wazitech.DevExpressFileSystem.Web", "Wazitech.DevExpressFileSystem.Web\Wazitech.DevExpressFileSystem.Web.csproj", "{15B0C03B-A04E-4583-9A49-9AD6EE01C302}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{CEE66C5E-BB6A-49D6-8A07-0143C87216A8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CEE66C5E-BB6A-49D6-8A07-0143C87216A8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CEE66C5E-BB6A-49D6-8A07-0143C87216A8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CEE66C5E-BB6A-49D6-8A07-0143C87216A8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{15B0C03B-A04E-4583-9A49-9AD6EE01C302}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{15B0C03B-A04E-4583-9A49-9AD6EE01C302}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{15B0C03B-A04E-4583-9A49-9AD6EE01C302}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{15B0C03B-A04E-4583-9A49-9AD6EE01C302}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {342E078D-2D7A-4468-9B2A-7C1FD9E8A598}
+	EndGlobalSection
+EndGlobal
