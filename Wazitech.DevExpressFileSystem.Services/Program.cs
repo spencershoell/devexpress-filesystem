@@ -1,6 +1,15 @@
+using Microsoft.EntityFrameworkCore;
+using System.Configuration;
+using Wazitech.DevExpressFileSystem.Services;
+
 var builder = WebApplication.CreateBuilder(args);
+var configuration = builder.Configuration;
 
 // Add services to the container.
+builder.Services.AddDbContext<FileManagementDbContext>(options =>
+        options.UseSqlServer(configuration.GetConnectionString("FileServerContext")));
+
+builder.Services.AddScoped<DbFileProvider>();
 
 builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
