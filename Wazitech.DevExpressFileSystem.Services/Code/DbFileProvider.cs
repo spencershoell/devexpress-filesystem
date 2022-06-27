@@ -1,10 +1,11 @@
 ﻿using DevExtreme.AspNet.Mvc.FileManagement;
+using Microsoft.EntityFrameworkCore;
 
 namespace Wazitech.DevExpressFileSystem.Services
 {
     public class DbFileProvider : IFileSystemItemLoader, IFileSystemItemEditor
     {
-        const int GuestPersonId = 1;
+        static readonly Guid GuestPersonId = Guid.Parse("2a5eb726-ef1a-42ab-b91d-cdd268c69865");
 
         public DbFileProvider(FileManagementDbContext fileManagementDbContext)
         {
@@ -15,9 +16,9 @@ namespace Wazitech.DevExpressFileSystem.Services
 
         public IEnumerable<FileSystemItem> GetItems(FileSystemLoadItemOptions options)
         {
-            int parentId = ParseKey(options.Directory.Key);
+            var parentId = ParseKey(options.Directory.Key);
             var fileItems = GetDirectoryContents(parentId);
-            var hasSubDirectoriesInfo = GetHasSubDirectoriesInfo(fileItems);
+            var hasSubDirectoriesInfo = GetHasSubDirectoriesInfo(fileItems).GetAwaiter().GetResult();
 
             var clientItemList = new List<FileSystemItem>();
             foreach (var item in fileItems)
@@ -30,10 +31,10 @@ namespace Wazitech.DevExpressFileSystem.Services
                     DateModified = item.Modified
                 };
 
-                if (item.IsDirectory)
-                {
-                    clientItem.HasSubDirectories = hasSubDirectoriesInfo.ContainsKey(item.Id) && hasSubDirectoriesInfo[item.Id];
-                }
+                //if (item.IsDirectory)
+                //{
+                //    clientItem.HasSubDirectories = hasSubDirectoriesInfo.ContainsKey(item.Id) && hasSubDirectoriesInfo[item.Id];
+                //}
 
                 clientItem.CustomFields["modifiedBy"] = item.ModifiedBy.FullName;
                 clientItem.CustomFields["created"] = item.Created;
@@ -161,7 +162,7 @@ namespace Wazitech.DevExpressFileSystem.Services
             }
         }
 
-        void RemoveDirectoryContentRecursive(int parenDirectoryKey)
+        void RemoveDirectoryContentRecursive(Guid parenDirectoryKey)
         {
             var itemsToRemove = FileManagementDbContext
                 .FileItems
@@ -184,20 +185,21 @@ namespace Wazitech.DevExpressFileSystem.Services
             }
         }
 
-        IEnumerable<FileItem> GetDirectoryContents(int parentKey)
+        IEnumerable<FileItem> GetDirectoryContents(Guid parentKey)
         {
             return FileManagementDbContext.FileItems
                 .OrderByDescending(item => item.IsDirectory)
                 .ThenBy(item => item.Name)
                 .Where(items => items.ParentId == parentKey);
         }
-        IDictionary<int, bool> GetHasSubDirectoriesInfo(IEnumerable<FileItem> fileItems)
+        public async Task<IDictionary<Guid, bool>> GetHasSubDirectoriesInfo(IEnumerable<FileItem> fileItems)
         {
-            var keys = fileItems.Select(i => i.Id).ToArray();
-            return FileManagementDbContext.FileItems
-                .Where(item => item.IsDirectory)
-                .GroupBy(i => i.ParentId)
-                .Where(i => keys.Contains(i.Key))
+            var keys = fileItems.Select(e => e.Id).ToArray();
+            return (await FileManagementDbContext.FileItems
+                .Where(e => e.IsDirectory)
+                .GroupBy(e => e.ParentId)
+                .ToListAsync())
+                .Where(e => keys.Contains(e.Key))
                 .ToDictionary(group => group.Key, group => group.Any());
         }
 
@@ -220,8 +222,9 @@ namespace Wazitech.DevExpressFileSystem.Services
             for (var i = 0; i < pathKeys.Length && isDirectoryExists; i++)
             {
                 var entry = foundEntries.FirstOrDefault(e => e.Id == pathKeys[i]);
+
                 isDirectoryExists = entry != null && entry.Name == pathNames[i] &&
-                                    (i == 0 && entry.ParentId == 0 || entry.ParentId == pathKeys[i - 1]);
+                                    (i == 0 && entry.ParentId == Guid.Empty || entry.ParentId == pathKeys[i - 1]);
                 if (entry != null && isDirectoryExists && i < pathKeys.Length - 1)
                     isDirectoryExists = entry.IsDirectory;
             }
@@ -256,12 +259,15 @@ namespace Wazitech.DevExpressFileSystem.Services
             };
         }
 
-        static int ParseKey(string key)
+        static Guid ParseKey(string key)
         {
-            return string.IsNullOrEmpty(key) ? 0 : int.Parse(key);
+            if (Guid.TryParse(key, out Guid guid))
+                return guid;
+
+            return Guid.Empty;
         }
 
-        string GenerateCopiedFileItemName(int parentDirKey, string copiedFileItemName, bool isDirectory)
+        string GenerateCopiedFileItemName(Guid parentDirKey, string copiedFileItemName, bool isDirectory)
         {
             var dirNames = GetDirectoryContents(parentDirKey)
                 .Where(i => i.IsDirectory == isDirectory)
