@@ -18,7 +18,7 @@ namespace Wazitech.DevExpressFileSystem.Services
         {
             var parentId = ParseKey(options.Directory.Key);
             var fileItems = GetDirectoryContents(parentId);
-            var hasSubDirectoriesInfo = GetHasSubDirectoriesInfo(fileItems).GetAwaiter().GetResult();
+            //var hasSubDirectoriesInfo = GetHasSubDirectoriesInfo(fileItems).GetAwaiter().GetResult();
 
             var clientItemList = new List<FileSystemItem>();
             foreach (var item in fileItems)
@@ -55,9 +55,14 @@ namespace Wazitech.DevExpressFileSystem.Services
                 Modified = DateTime.Now,
                 Created = DateTime.Now,
                 IsDirectory = true,
-                ParentId = ParseKey(parentDirectory.Key),
                 ModifiedById = GuestPersonId
             };
+
+            var parentId = ParseKey(parentDirectory.Key);
+
+            if (parentId != Guid.Empty)
+                directory.ParentId = parentId;
+
             FileManagementDbContext.FileItems.Add(directory);
             FileManagementDbContext.SaveChanges();
         }
@@ -118,7 +123,7 @@ namespace Wazitech.DevExpressFileSystem.Services
             if (copyFileItem != null && sourceFileItem != null)
             {
                 copyFileItem.ParentId = ParseKey(destinationDirectory.Key);
-                copyFileItem.Name = GenerateCopiedFileItemName(copyFileItem.ParentId, copyFileItem.Name, copyFileItem.IsDirectory);
+                copyFileItem.Name = GenerateCopiedFileItemName(copyFileItem.ParentId.GetValueOrDefault(), copyFileItem.Name, copyFileItem.IsDirectory);
                 FileManagementDbContext.FileItems.Add(copyFileItem);
 
                 if (copyFileItem.IsDirectory)
@@ -187,20 +192,30 @@ namespace Wazitech.DevExpressFileSystem.Services
 
         IEnumerable<FileItem> GetDirectoryContents(Guid parentKey)
         {
-            return FileManagementDbContext.FileItems
+            var query = FileManagementDbContext.FileItems
+                .Include(e => e.ModifiedBy)
+                .Include(e => e.Parent)
                 .OrderByDescending(item => item.IsDirectory)
-                .ThenBy(item => item.Name)
-                .Where(items => items.ParentId == parentKey);
+                .ThenBy(item => item.Name);
+
+            if (parentKey == Guid.Empty)
+                return query.Where(e => e.ParentId == null);
+
+            return
+                query.Where(items => items.ParentId == parentKey);
         }
         public async Task<IDictionary<Guid, bool>> GetHasSubDirectoriesInfo(IEnumerable<FileItem> fileItems)
         {
-            var keys = fileItems.Select(e => e.Id).ToArray();
-            return (await FileManagementDbContext.FileItems
+            var keys = fileItems
+                .Select(e => e.Id)
+                .ToList();
+            return (await FileManagementDbContext
+                .FileItems
                 .Where(e => e.IsDirectory)
                 .GroupBy(e => e.ParentId)
+                .Where(e => keys.Contains(e.Key.GetValueOrDefault()))
                 .ToListAsync())
-                .Where(e => keys.Contains(e.Key))
-                .ToDictionary(group => group.Key, group => group.Any());
+                .ToDictionary(group => group.Key.GetValueOrDefault(), group => group.Any());
         }
 
         FileItem? GetFileItem(FileSystemItemInfo item)
@@ -211,7 +226,9 @@ namespace Wazitech.DevExpressFileSystem.Services
 
         bool IsFileItemExists(FileSystemItemInfo itemInfo)
         {
-            var pathKeys = itemInfo.PathKeys.Select(key => ParseKey(key)).ToArray();
+            var pathKeys = itemInfo.PathKeys.Select(key => ParseKey(key))
+                .ToArray();
+            
             var foundEntries = FileManagementDbContext.FileItems
                 .Where(item => pathKeys.Contains(item.Id))
                 .Select(item => new { item.Id, item.ParentId, item.Name, item.IsDirectory });
@@ -224,7 +241,7 @@ namespace Wazitech.DevExpressFileSystem.Services
                 var entry = foundEntries.FirstOrDefault(e => e.Id == pathKeys[i]);
 
                 isDirectoryExists = entry != null && entry.Name == pathNames[i] &&
-                                    (i == 0 && entry.ParentId == Guid.Empty || entry.ParentId == pathKeys[i - 1]);
+                                    (i == 0 && entry.ParentId == null || entry.ParentId == pathKeys[i - 1]);
                 if (entry != null && isDirectoryExists && i < pathKeys.Length - 1)
                     isDirectoryExists = entry.IsDirectory;
             }

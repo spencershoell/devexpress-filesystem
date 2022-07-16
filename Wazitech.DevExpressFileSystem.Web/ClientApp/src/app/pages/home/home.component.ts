@@ -8,7 +8,7 @@ import RemoteFileSystemProvider from 'devextreme/file_management/remote_provider
   templateUrl: 'home.component.html'
 })
 export class HomeComponent {
-  allowedFileExtensions: string[];
+  allowedFileExtensions: string[] = [".txt"];
 
   remoteProvider: RemoteFileSystemProvider;
 

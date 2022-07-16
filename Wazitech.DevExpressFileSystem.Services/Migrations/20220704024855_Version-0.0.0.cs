@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 namespace Wazitech.DevExpressFileSystem.Services.Migrations
 {
-    public partial class init : Migration
+    public partial class Version000 : Migration
     {
         protected override void Up(MigrationBuilder migrationBuilder)
         {
@@ -31,7 +31,7 @@ namespace Wazitech.DevExpressFileSystem.Services.Migrations
                     Modified = table.Column<DateTime>(type: "datetime2", nullable: false),
                     IsDirectory = table.Column<bool>(type: "bit", nullable: false),
                     ModifiedById = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    ParentId = table.Column<Guid>(type: "uniqueidentifier", nullable: false)
+                    ParentId = table.Column<Guid>(type: "uniqueidentifier", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -40,8 +40,7 @@ namespace Wazitech.DevExpressFileSystem.Services.Migrations
                         name: "FK_FileItems_FileItems_ParentId",
                         column: x => x.ParentId,
                         principalTable: "FileItems",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
+                        principalColumn: "Id");
                     table.ForeignKey(
                         name: "FK_FileItems_User_ModifiedById",
                         column: x => x.ModifiedById,
