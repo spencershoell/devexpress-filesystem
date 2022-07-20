@@ -12,8 +12,8 @@ using Wazitech.DevExpressFileSystem.Services;
 namespace Wazitech.DevExpressFileSystem.Services.Migrations
 {
     [DbContext(typeof(FileManagementDbContext))]
-    [Migration("20220704024855_Version-0.0.0")]
-    partial class Version000
+    [Migration("20220719174403_Version-0.0.1")]
+    partial class Version001
     {
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
@@ -29,6 +29,10 @@ namespace Wazitech.DevExpressFileSystem.Services.Migrations
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<byte[]>("Content")
+                        .IsRequired()
+                        .HasColumnType("varbinary(max)");
 
                     b.Property<DateTime>("Created")
                         .HasColumnType("datetime2");
@@ -46,7 +50,7 @@ namespace Wazitech.DevExpressFileSystem.Services.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<Guid?>("ParentId")
+                    b.Property<Guid>("ParentId")
                         .HasColumnType("uniqueidentifier");
 
                     b.HasKey("Id");
@@ -83,7 +87,9 @@ namespace Wazitech.DevExpressFileSystem.Services.Migrations
 
                     b.HasOne("Wazitech.DevExpressFileSystem.Services.FileItem", "Parent")
                         .WithMany("Files")
-                        .HasForeignKey("ParentId");
+                        .HasForeignKey("ParentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
 
                     b.Navigation("ModifiedBy");
 

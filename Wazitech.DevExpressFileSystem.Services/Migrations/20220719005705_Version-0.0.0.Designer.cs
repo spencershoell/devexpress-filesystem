@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Wazitech.DevExpressFileSystem.Services;
 
@@ -11,9 +12,10 @@ using Wazitech.DevExpressFileSystem.Services;
 namespace Wazitech.DevExpressFileSystem.Services.Migrations
 {
     [DbContext(typeof(FileManagementDbContext))]
-    partial class FileManagementDbContextModelSnapshot : ModelSnapshot
+    [Migration("20220719005705_Version-0.0.0")]
+    partial class Version000
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -27,10 +29,6 @@ namespace Wazitech.DevExpressFileSystem.Services.Migrations
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
-
-                    b.Property<byte[]>("Content")
-                        .IsRequired()
-                        .HasColumnType("varbinary(max)");
 
                     b.Property<DateTime>("Created")
                         .HasColumnType("datetime2");

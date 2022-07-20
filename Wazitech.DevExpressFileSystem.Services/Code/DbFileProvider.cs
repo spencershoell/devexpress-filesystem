@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Wazitech.DevExpressFileSystem.Services
 {
-    public class DbFileProvider : IFileSystemItemLoader, IFileSystemItemEditor
+    public class DbFileProvider : IFileSystemItemLoader, IFileSystemItemEditor, IFileUploader, IFileContentProvider
     {
         static readonly Guid GuestPersonId = Guid.Parse("2a5eb726-ef1a-42ab-b91d-cdd268c69865");
 
@@ -18,7 +18,7 @@ namespace Wazitech.DevExpressFileSystem.Services
         {
             var parentId = ParseKey(options.Directory.Key);
             var fileItems = GetDirectoryContents(parentId);
-            //var hasSubDirectoriesInfo = GetHasSubDirectoriesInfo(fileItems).GetAwaiter().GetResult();
+            var hasSubDirectoriesInfo = GetHasSubDirectoriesInfo(fileItems).GetAwaiter().GetResult();
 
             var clientItemList = new List<FileSystemItem>();
             foreach (var item in fileItems)
@@ -31,10 +31,10 @@ namespace Wazitech.DevExpressFileSystem.Services
                     DateModified = item.Modified
                 };
 
-                //if (item.IsDirectory)
-                //{
-                //    clientItem.HasSubDirectories = hasSubDirectoriesInfo.ContainsKey(item.Id) && hasSubDirectoriesInfo[item.Id];
-                //}
+                if (item.IsDirectory)
+                {
+                    clientItem.HasSubDirectories = hasSubDirectoriesInfo.ContainsKey(item.Id) && hasSubDirectoriesInfo[item.Id];
+                }
 
                 clientItem.CustomFields["modifiedBy"] = item.ModifiedBy.FullName;
                 clientItem.CustomFields["created"] = item.Created;
@@ -55,7 +55,8 @@ namespace Wazitech.DevExpressFileSystem.Services
                 Modified = DateTime.Now,
                 Created = DateTime.Now,
                 IsDirectory = true,
-                ModifiedById = GuestPersonId
+                ModifiedById = GuestPersonId,
+                ParentId = Guid.Empty
             };
 
             var parentId = ParseKey(parentDirectory.Key);
@@ -123,7 +124,7 @@ namespace Wazitech.DevExpressFileSystem.Services
             if (copyFileItem != null && sourceFileItem != null)
             {
                 copyFileItem.ParentId = ParseKey(destinationDirectory.Key);
-                copyFileItem.Name = GenerateCopiedFileItemName(copyFileItem.ParentId.GetValueOrDefault(), copyFileItem.Name, copyFileItem.IsDirectory);
+                copyFileItem.Name = GenerateCopiedFileItemName(copyFileItem.ParentId, copyFileItem.Name, copyFileItem.IsDirectory);
                 FileManagementDbContext.FileItems.Add(copyFileItem);
 
                 if (copyFileItem.IsDirectory)
@@ -147,6 +148,7 @@ namespace Wazitech.DevExpressFileSystem.Services
             }
         }
 
+        // GTG
         public void DeleteItem(FileSystemDeleteItemOptions options)
         {
             var item = options.Item;
@@ -158,64 +160,51 @@ namespace Wazitech.DevExpressFileSystem.Services
 
             if (fileItem != null)
             {
-                FileManagementDbContext.FileItems.Remove(fileItem);
-
                 if (fileItem.IsDirectory)
                     RemoveDirectoryContentRecursive(fileItem.Id);
 
-                FileManagementDbContext.SaveChanges();
+                FileManagementDbContext.FileItems.Remove(fileItem);
+
+                FileManagementDbContext.SaveChangesAsync().GetAwaiter().GetResult();
             }
         }
 
-        void RemoveDirectoryContentRecursive(Guid parenDirectoryKey)
+        public void RemoveDirectoryContentRecursive(Guid parentDirectoryKey)
         {
-            var itemsToRemove = FileManagementDbContext
-                .FileItems
-                .Where(item => item.ParentId == parenDirectoryKey)
-                .Select(item => new FileItem
-                {
-                    Id = item.Id,
-                    IsDirectory = item.IsDirectory
-                });
+            var itemsToRemove = FileManagementDbContext.FileItems
+                .Where(e => e.ParentId == parentDirectoryKey);
+
             foreach (var item in itemsToRemove)
-            {
+                if (item.IsDirectory)
+                    RemoveDirectoryContentRecursive(item.Id);
+
+            foreach (var item in itemsToRemove)
                 FileManagementDbContext.FileItems.Remove(item);
-            }
-
-            foreach (var item in itemsToRemove)
-            {
-                if (!item.IsDirectory) continue;
-
-                RemoveDirectoryContentRecursive(item.Id);
-            }
         }
 
-        IEnumerable<FileItem> GetDirectoryContents(Guid parentKey)
+        IQueryable<FileItem> GetDirectoryContents(Guid parentKey)
         {
             var query = FileManagementDbContext.FileItems
                 .Include(e => e.ModifiedBy)
                 .Include(e => e.Parent)
+                .Where(e => e.Id != Guid.Empty)
                 .OrderByDescending(item => item.IsDirectory)
                 .ThenBy(item => item.Name);
 
-            if (parentKey == Guid.Empty)
-                return query.Where(e => e.ParentId == null);
-
-            return
-                query.Where(items => items.ParentId == parentKey);
+            return query.Where(items => items.ParentId == parentKey);
         }
-        public async Task<IDictionary<Guid, bool>> GetHasSubDirectoriesInfo(IEnumerable<FileItem> fileItems)
+        public async Task<IDictionary<Guid, bool>> GetHasSubDirectoriesInfo(IQueryable<FileItem> fileItems)
         {
-            var keys = fileItems
-                .Select(e => e.Id)
-                .ToList();
+            IQueryable<Guid> keys = fileItems
+                .Select(e => e.Id);
+
             return (await FileManagementDbContext
                 .FileItems
                 .Where(e => e.IsDirectory)
-                .GroupBy(e => e.ParentId)
-                .Where(e => keys.Contains(e.Key.GetValueOrDefault()))
+                .Where(e => keys.Contains(e.ParentId))
                 .ToListAsync())
-                .ToDictionary(group => group.Key.GetValueOrDefault(), group => group.Any());
+                .GroupBy(e => e.ParentId)
+                .ToDictionary(group => group.Key, group => group.Any());
         }
 
         FileItem? GetFileItem(FileSystemItemInfo item)
@@ -228,7 +217,7 @@ namespace Wazitech.DevExpressFileSystem.Services
         {
             var pathKeys = itemInfo.PathKeys.Select(key => ParseKey(key))
                 .ToArray();
-            
+
             var foundEntries = FileManagementDbContext.FileItems
                 .Where(item => pathKeys.Contains(item.Id))
                 .Select(item => new { item.Id, item.ParentId, item.Name, item.IsDirectory });
@@ -241,7 +230,7 @@ namespace Wazitech.DevExpressFileSystem.Services
                 var entry = foundEntries.FirstOrDefault(e => e.Id == pathKeys[i]);
 
                 isDirectoryExists = entry != null && entry.Name == pathNames[i] &&
-                                    (i == 0 && entry.ParentId == null || entry.ParentId == pathKeys[i - 1]);
+                                    (i == 0 && entry.ParentId == Guid.Empty || entry.ParentId == pathKeys[i - 1]);
                 if (entry != null && isDirectoryExists && i < pathKeys.Length - 1)
                     isDirectoryExists = entry.IsDirectory;
             }
@@ -316,6 +305,34 @@ namespace Wazitech.DevExpressFileSystem.Services
         {
             string message = "Access denied. The operation cannot be completed.";
             throw new FileSystemException(FileSystemErrorCode.NoAccess, message);
+        }
+
+        public void UploadFile(FileSystemUploadFileOptions options)
+        {
+            var file = new FileItem
+            {
+                Name = options.FileName,
+                Content = new byte[options.FileContent.Length],
+                Created = DateTime.Now,
+                Modified = DateTime.Now,
+                ModifiedById = GuestPersonId,
+                ParentId = ParseKey(options.DestinationDirectory.Key)
+            };
+
+            options.FileContent.ReadAsync(file.Content, 0, file.Content.Length);
+
+            FileManagementDbContext.FileItems.Add(file);
+            FileManagementDbContext.SaveChanges();
+        }
+
+        public Stream GetFileContent(FileSystemLoadFileContentOptions options)
+        {
+            var file = FileManagementDbContext.FileItems.FirstOrDefault(e => e.Id == ParseKey(options.File.Key));
+
+            if (file == null)
+                throw new Exception("Not Found");
+
+            return new MemoryStream(file.Content);
         }
     }
 }

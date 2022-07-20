@@ -1,7 +1,7 @@
 ﻿using DevExtreme.AspNet.Mvc.FileManagement;
 using Microsoft.AspNetCore.Mvc;
 
-namespace Wazitech.DevExpressFileSystem.Services.Controllers
+namespace Wazitech.DevExpressFileSystem.Services
 {
     public class FileManagerDbProviderApiController : Controller
     {
@@ -13,7 +13,7 @@ namespace Wazitech.DevExpressFileSystem.Services.Controllers
         protected DbFileProvider DBFileProvider { get; }
 
         [Route("api/file-manager-db", Name = "FileManagerDBProviderApi")]
-        public IActionResult Process(FileSystemCommand command, string arguments)
+        public object Process(FileSystemCommand command, string arguments)
         {
             var config = new FileSystemConfiguration
             {
@@ -24,11 +24,22 @@ namespace Wazitech.DevExpressFileSystem.Services.Controllers
                 AllowMove = true,
                 AllowDelete = true,
                 AllowRename = true,
-                AllowedFileExtensions = Array.Empty<string>()
+                AllowedFileExtensions = Array.Empty<string>(),
+                AllowDownload = true,
+                AllowUpload = true
             };
             var processor = new FileSystemCommandProcessor(config);
             var result = processor.Execute(command, arguments);
-            return Ok(result.GetClientCommandResult());
+
+            if (result != null)
+            {
+                //if (command == FileSystemCommand.Download)
+                //    return result.GetClientCommandResult();
+
+                return Ok(result.GetClientCommandResult());
+            }
+
+            return BadRequest();
         }
     }
 }

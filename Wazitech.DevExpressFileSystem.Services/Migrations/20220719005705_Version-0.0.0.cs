@@ -31,7 +31,7 @@ namespace Wazitech.DevExpressFileSystem.Services.Migrations
                     Modified = table.Column<DateTime>(type: "datetime2", nullable: false),
                     IsDirectory = table.Column<bool>(type: "bit", nullable: false),
                     ModifiedById = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    ParentId = table.Column<Guid>(type: "uniqueidentifier", nullable: true)
+                    ParentId = table.Column<Guid>(type: "uniqueidentifier", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -40,7 +40,8 @@ namespace Wazitech.DevExpressFileSystem.Services.Migrations
                         name: "FK_FileItems_FileItems_ParentId",
                         column: x => x.ParentId,
                         principalTable: "FileItems",
-                        principalColumn: "Id");
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
                         name: "FK_FileItems_User_ModifiedById",
                         column: x => x.ModifiedById,
