@@ -33,8 +33,8 @@ namespace Wazitech.DevExpressFileSystem.Services
 
             if (result != null)
             {
-                //if (command == FileSystemCommand.Download)
-                //    return result.GetClientCommandResult();
+                if (command == FileSystemCommand.Download)
+                    return result.GetClientCommandResult();
 
                 return Ok(result.GetClientCommandResult());
             }
